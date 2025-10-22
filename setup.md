@@ -51,7 +51,7 @@ sudo yum install python3 python3-pip
 
 ### 方法 1: GitHub からダウンロード（推奨）
 
-1. GitHub のリポジトリページにアクセス
+1. [GitHub のリポジトリページ](https://github.com/mokkun55/fashion-app/tree/main)にアクセス
 2. 緑色の「Code」ボタンをクリック
 3. 「Download ZIP」をクリック
 4. ダウンロードした ZIP ファイルを解凍
