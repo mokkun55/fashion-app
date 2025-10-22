@@ -69,5 +69,5 @@ logs/
 *.tmp
 *.temp
 
-# Uploaded files (optional - remove if you want to keep uploaded images)
-# static/uploads/
+# Uploaded files - アップロードされた画像は除外
+static/uploads/
