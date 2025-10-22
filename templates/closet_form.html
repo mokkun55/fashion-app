@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}{% if clothing %}服を編集{% else %}服を登録{% endif %} - fashion-app{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-2xl font-bold text-gray-900 mb-6">
+            {% if clothing %}服を編集{% else %}服を登録{% endif %}
+        </h1>
+
+        <form method="POST" 
+              action="{% if clothing %}{{ url_for('closet_update', clothing_id=clothing.id) }}{% else %}{{ url_for('closet_add') }}{% endif %}" 
+              enctype="multipart/form-data"
+              class="space-y-6">
+            
+            <!-- 写真アップロード -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    写真 {% if not clothing %}<span class="text-red-500">*</span>{% endif %}
+                </label>
+                
+                {% if clothing %}
+                <div class="mb-4">
+                    <img src="{{ url_for('static', filename=clothing.photo_path) }}" 
+                         alt="現在の写真" 
+                         class="w-48 h-48 object-cover rounded-lg">
+                    <p class="mt-2 text-sm text-gray-500">新しい写真をアップロードすると、この写真が置き換わります</p>
+                </div>
+                {% endif %}
+                
+                <input type="file" 
+                       name="photo" 
+                       accept="image/*"
+                       {% if not clothing %}required{% endif %}
+                       class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                <p class="mt-1 text-xs text-gray-500">PNG, JPG, JPEG, GIF, WEBP（最大16MB）</p>
+            </div>
+
+            <!-- 種類（大分類） -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    種類（大分類） <span class="text-red-500">*</span>
+                </label>
+                <div class="flex gap-4">
+                    <label class="flex items-center">
+                        <input type="radio" 
+                               name="category" 
+                               value="トップス" 
+                               {% if clothing and clothing.category == 'トップス' %}checked{% endif %}
+                               required
+                               onchange="updateSubcategoryOptions()"
+                               class="mr-2">
+                        <span>トップス</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" 
+                               name="category" 
+                               value="ボトムス" 
+                               {% if clothing and clothing.category == 'ボトムス' %}checked{% endif %}
+                               required
+                               onchange="updateSubcategoryOptions()"
+                               class="mr-2">
+                        <span>ボトムス</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 種類（中分類） -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    種類（中分類） <span class="text-red-500">*</span>
+                </label>
+                <select name="subcategory" 
+                        id="subcategory"
+                        required
+                        class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">選択してください</option>
+                    <!-- JavaScriptで動的に更新 -->
+                </select>
+            </div>
+
+            <!-- 色 -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    色 <span class="text-red-500">*</span>
+                </label>
+                <select name="color" 
+                        required
+                        class="block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">選択してください</option>
+                    {% for color in ['黒', '白', 'グレー', '紺', '青', '赤', 'ピンク', '緑', '黄色', '茶色', 'ベージュ', 'その他'] %}
+                    <option value="{{ color }}" {% if clothing and clothing.color == color %}selected{% endif %}>{{ color }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- 用途ラベル -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    用途ラベル <span class="text-red-500">*</span>
+                </label>
+                <p class="text-xs text-gray-500 mb-2">複数選択可能</p>
+                <div class="space-y-2">
+                    {% set purposes_list = clothing.get_purposes_list() if clothing else [] %}
+                    <label class="flex items-center">
+                        <input type="checkbox" 
+                               name="purposes" 
+                               value="大学"
+                               {% if '大学' in purposes_list %}checked{% endif %}
+                               class="mr-2">
+                        <span>大学（カジュアル/普段着）</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" 
+                               name="purposes" 
+                               value="企業"
+                               {% if '企業' in purposes_list %}checked{% endif %}
+                               class="mr-2">
+                        <span>企業（フォーマル/オフィスカジュアル）</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" 
+                               name="purposes" 
+                               value="デート"
+                               {% if 'デート' in purposes_list %}checked{% endif %}
+                               class="mr-2">
+                        <span>デート（プライベート/おしゃれ）</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- アクションボタン -->
+            <div class="flex gap-3 pt-4">
+                <button type="submit" 
+                        class="flex-1 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    {% if clothing %}更新{% else %}登録{% endif %}
+                </button>
+                <a href="{{ url_for('closet') }}" 
+                   class="flex-1 text-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    キャンセル
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const subcategoryOptions = {
+        'トップス': ['半袖', '長袖・薄手', '長袖・厚手'],
+        'ボトムス': ['短め', '長め']
+    };
+
+    function updateSubcategoryOptions() {
+        const categoryRadios = document.getElementsByName('category');
+        let selectedCategory = '';
+        
+        for (const radio of categoryRadios) {
+            if (radio.checked) {
+                selectedCategory = radio.value;
+                break;
+            }
+        }
+        
+        const subcategorySelect = document.getElementById('subcategory');
+        subcategorySelect.innerHTML = '<option value="">選択してください</option>';
+        
+        if (selectedCategory && subcategoryOptions[selectedCategory]) {
+            subcategoryOptions[selectedCategory].forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option;
+                optionElement.textContent = option;
+                
+                // 編集時の選択状態を保持
+                {% if clothing %}
+                if (option === '{{ clothing.subcategory }}') {
+                    optionElement.selected = true;
+                }
+                {% endif %}
+                
+                subcategorySelect.appendChild(optionElement);
+            });
+        }
+    }
+
+    // ページ読み込み時に実行
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSubcategoryOptions();
+    });
+</script>
+{% endblock %}
+

@@ -1,0 +1,428 @@
+{% extends "base.html" %} {% block title %}ホーム - fashion-app{% endblock %} {%
+block content %}
+<div class="space-y-8">
+  <!-- ページタイトル -->
+  <div class="text-center">
+    <h1 class="text-3xl font-bold text-gray-900">今日のコーディネート</h1>
+    <p class="mt-2 text-sm text-gray-600">
+      予定と気温に基づいて最適な服装を提案します
+    </p>
+  </div>
+
+  <!-- 予定選択エリア -->
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-semibold text-gray-900">今日の予定</h2>
+      {% if today_schedule %}
+      <a
+        href="{{ url_for('calendar') }}"
+        class="text-sm text-blue-600 hover:text-blue-800"
+      >
+        カレンダーを見る →
+      </a>
+      {% endif %}
+    </div>
+
+    {% if auto_selected and today_schedule %}
+    <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+      <div class="flex items-start">
+        <svg
+          class="h-5 w-5 text-blue-600 mt-0.5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
+        </svg>
+        <div class="ml-3 flex-1">
+          <p class="text-sm text-blue-800">
+            カレンダーの予定から「<strong>{{ selected_purpose }}</strong
+            >」を自動選択しました {% if today_schedule.memo %}
+            <span class="text-blue-600">({{ today_schedule.memo }})</span>
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <form method="POST" action="{{ url_for('index') }}" id="purposeForm">
+      <div class="flex gap-4 justify-center flex-wrap">
+        <button
+          type="submit"
+          name="purpose"
+          value="大学"
+          class="px-6 py-3 rounded-lg border-2 font-medium transition-colors {% if selected_purpose == '大学' %}border-blue-500 bg-blue-50 text-blue-700{% else %}border-gray-300 text-gray-700 hover:border-gray-400{% endif %}"
+        >
+          大学
+        </button>
+        <button
+          type="submit"
+          name="purpose"
+          value="企業"
+          class="px-6 py-3 rounded-lg border-2 font-medium transition-colors {% if selected_purpose == '企業' %}border-blue-500 bg-blue-50 text-blue-700{% else %}border-gray-300 text-gray-700 hover:border-gray-400{% endif %}"
+        >
+          企業
+        </button>
+        <button
+          type="submit"
+          name="purpose"
+          value="デート"
+          class="px-6 py-3 rounded-lg border-2 font-medium transition-colors {% if selected_purpose == 'デート' %}border-blue-500 bg-blue-50 text-blue-700{% else %}border-gray-300 text-gray-700 hover:border-gray-400{% endif %}"
+        >
+          デート
+        </button>
+      </div>
+      {% if auto_selected %}
+      <p class="text-center text-xs text-gray-500 mt-3">
+        予定を手動で変更する場合は上のボタンをクリック
+      </p>
+      {% endif %}
+    </form>
+  </div>
+
+  <!-- 気温・天気情報エリア -->
+  <div class="bg-white rounded-lg shadow p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-semibold text-gray-900">現在の天気</h3>
+      <button
+        id="location-btn"
+        onclick="getCurrentLocation()"
+        class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+      >
+        <svg
+          class="w-4 h-4 mr-2"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+          ></path>
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+          ></path>
+        </svg>
+        位置情報を取得
+      </button>
+    </div>
+
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-sm text-gray-600">現在の気温</p>
+        {% if weather.temperature is not none %}
+        <p class="text-3xl font-bold text-gray-900">
+          {{ weather.temperature }}°C
+        </p>
+        {% else %}
+        <p class="text-3xl font-bold text-gray-400">--°C</p>
+        {% endif %}
+      </div>
+      <div class="text-right">
+        <p class="text-sm text-gray-600">{{ weather.city }}</p>
+        {% if weather.error %}
+        <p class="text-sm text-red-500">{{ weather.description }}</p>
+        <p class="text-xs text-gray-400 mt-1">
+          設定で天気APIキーを追加してください
+        </p>
+        {% else %}
+        <p class="text-sm text-gray-500">{{ weather.description }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- 位置情報取得中の表示 -->
+    <div
+      id="location-loading"
+      class="hidden mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg"
+    >
+      <div class="flex items-center">
+        <svg
+          class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            class="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            stroke-width="4"
+          ></circle>
+          <path
+            class="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          ></path>
+        </svg>
+        <span class="text-sm text-blue-800">位置情報を取得中...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- コーディネート提案エリア -->
+  <div class="bg-white rounded-lg shadow p-6">
+    <h2 class="text-lg font-semibold text-gray-900 mb-4">
+      おすすめコーディネート
+    </h2>
+
+    {% if suggestions %}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {% for suggestion in suggestions %}
+      <div
+        class="border-2 border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-colors"
+      >
+        <p class="text-sm font-medium text-gray-700 mb-3">
+          パターン {{ loop.index }}
+        </p>
+
+        <!-- トップス -->
+        <div class="mb-4">
+          <p class="text-xs text-gray-500 mb-2">トップス</p>
+          <div
+            class="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-2"
+          >
+            <img
+              src="{{ url_for('static', filename=suggestion.top.photo_path) }}"
+              alt="{{ suggestion.top.category }}"
+              class="w-full h-full object-cover"
+            />
+          </div>
+          <div class="flex justify-between items-center">
+            <p class="text-sm text-gray-700">
+              {{ suggestion.top.subcategory }}
+            </p>
+            <span class="text-xs px-2 py-1 bg-gray-100 rounded-full"
+              >{{ suggestion.top.color }}</span
+            >
+          </div>
+        </div>
+
+        <!-- ボトムス -->
+        <div class="mb-4">
+          <p class="text-xs text-gray-500 mb-2">ボトムス</p>
+          <div
+            class="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-2"
+          >
+            <img
+              src="{{ url_for('static', filename=suggestion.bottom.photo_path) }}"
+              alt="{{ suggestion.bottom.category }}"
+              class="w-full h-full object-cover"
+            />
+          </div>
+          <div class="flex justify-between items-center">
+            <p class="text-sm text-gray-700">
+              {{ suggestion.bottom.subcategory }}
+            </p>
+            <span class="text-xs px-2 py-1 bg-gray-100 rounded-full"
+              >{{ suggestion.bottom.color }}</span
+            >
+          </div>
+        </div>
+
+        <!-- 着用ボタン -->
+        <form method="POST" action="{{ url_for('wear_outfit') }}">
+          <input type="hidden" name="top_id" value="{{ suggestion.top.id }}" />
+          <input
+            type="hidden"
+            name="bottom_id"
+            value="{{ suggestion.bottom.id }}"
+          />
+          <button
+            type="submit"
+            class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            これを着た
+          </button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <!-- 空状態 -->
+    <div class="text-center py-12">
+      <svg
+        class="mx-auto h-12 w-12 text-gray-400"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+        />
+      </svg>
+      <h3 class="mt-2 text-sm font-medium text-gray-900">
+        コーディネートを提案できません
+      </h3>
+      <p class="mt-1 text-sm text-gray-500">
+        {% if weather.temperature is none %} 天気情報の取得に失敗しました {%
+        else %} 「{{ selected_purpose }}」用の服が登録されていないか、<br />
+        気温（{{ weather.temperature }}°C）に合う服が見つかりませんでした {%
+        endif %}
+      </p>
+      <div class="mt-6">
+        <a
+          href="{{ url_for('closet') }}"
+          class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+        >
+          クローゼットに服を登録する
+        </a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  function getCurrentLocation() {
+    const locationBtn = document.getElementById("location-btn");
+    const loadingDiv = document.getElementById("location-loading");
+
+    // ボタンを無効化
+    locationBtn.disabled = true;
+    locationBtn.textContent = "取得中...";
+    loadingDiv.classList.remove("hidden");
+
+    if (!navigator.geolocation) {
+      showError("このブラウザは位置情報をサポートしていません");
+      resetButton();
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      function (position) {
+        // 位置情報取得成功
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+
+        // サーバーに位置情報を送信
+        fetch("/update-location", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            latitude: lat,
+            longitude: lon,
+          }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success) {
+              // ページをリロードして天気情報を更新
+              window.location.reload();
+            } else {
+              showError(data.error || "天気情報の取得に失敗しました");
+              resetButton();
+            }
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            showError("サーバーとの通信に失敗しました");
+            resetButton();
+          });
+      },
+      function (error) {
+        // 位置情報取得失敗
+        let errorMessage = "位置情報の取得に失敗しました";
+
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage =
+              "位置情報の利用が拒否されました。デフォルトの東京の天気を表示します。";
+            // デフォルト位置で天気を取得
+            fetch("/update-location", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                latitude: 35.6762,
+                longitude: 139.6503,
+                city: "Tokyo",
+              }),
+            })
+              .then((response) => response.json())
+              .then((data) => {
+                if (data.success) {
+                  window.location.reload();
+                } else {
+                  showError(errorMessage);
+                  resetButton();
+                }
+              })
+              .catch(() => {
+                showError(errorMessage);
+                resetButton();
+              });
+            return;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = "位置情報が利用できません";
+            break;
+          case error.TIMEOUT:
+            errorMessage = "位置情報の取得がタイムアウトしました";
+            break;
+        }
+
+        showError(errorMessage);
+        resetButton();
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000, // 5分間キャッシュ
+      }
+    );
+  }
+
+  function showError(message) {
+    // エラーメッセージを表示
+    const loadingDiv = document.getElementById("location-loading");
+    loadingDiv.innerHTML = `
+      <div class="flex items-center">
+        <svg class="w-5 h-5 mr-3 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span class="text-sm text-red-800">${message}</span>
+      </div>
+    `;
+    loadingDiv.classList.remove("hidden");
+
+    // 3秒後にエラーメッセージを非表示
+    setTimeout(() => {
+      loadingDiv.classList.add("hidden");
+    }, 3000);
+  }
+
+  function resetButton() {
+    const locationBtn = document.getElementById("location-btn");
+    const loadingDiv = document.getElementById("location-loading");
+
+    locationBtn.disabled = false;
+    locationBtn.innerHTML = `
+      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+      </svg>
+      位置情報を取得
+    `;
+    loadingDiv.classList.add("hidden");
+  }
+</script>
+{% endblock %}

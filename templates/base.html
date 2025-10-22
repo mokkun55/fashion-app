@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}fashion-app{% endblock %}</title>
+
+    <!-- Tailwind CSS CDN（開発用） -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    {% block extra_css %}{% endblock %}
+  </head>
+  <body class="bg-gray-50 min-h-screen">
+    <!-- ナビゲーションバー -->
+    <nav class="bg-white shadow-sm">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+          <div class="flex">
+            <div class="flex-shrink-0 flex items-center">
+              <a
+                href="{{ url_for('index') }}"
+                class="text-xl font-bold text-gray-800"
+              >
+                👔 fashion-app
+              </a>
+            </div>
+            <!-- デスクトップ用ナビゲーション -->
+            <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+              <a
+                href="{{ url_for('index') }}"
+                class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+              >
+                ホーム
+              </a>
+              <a
+                href="{{ url_for('closet') }}"
+                class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+              >
+                クローゼット
+              </a>
+              <a
+                href="{{ url_for('calendar') }}"
+                class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
+              >
+                カレンダー
+              </a>
+            </div>
+          </div>
+
+          <!-- モバイル用ハンバーガーメニューボタン -->
+          <div class="sm:hidden">
+            <button
+              type="button"
+              class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
+              onclick="toggleMobileMenu()"
+            >
+              <span class="sr-only">メニューを開く</span>
+              <!-- ハンバーガーアイコン -->
+              <svg
+                class="block h-6 w-6"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                id="menu-icon"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
+              </svg>
+              <!-- 閉じるアイコン -->
+              <svg
+                class="hidden h-6 w-6"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                id="close-icon"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- モバイル用メニュー -->
+      <div class="sm:hidden hidden" id="mobile-menu">
+        <div class="pt-2 pb-3 space-y-1">
+          <a
+            href="{{ url_for('index') }}"
+            class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:border-gray-300"
+          >
+            ホーム
+          </a>
+          <a
+            href="{{ url_for('closet') }}"
+            class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:border-gray-300"
+          >
+            クローゼット
+          </a>
+          <a
+            href="{{ url_for('calendar') }}"
+            class="block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 hover:border-gray-300"
+          >
+            カレンダー
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- フラッシュメッセージ -->
+    {% with messages = get_flashed_messages(with_categories=true) %} {% if
+    messages %}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+      {% for category, message in messages %}
+      <div
+        class="rounded-md p-4 mb-4 {% if category == 'error' %}bg-red-50 text-red-800{% elif category == 'success' %}bg-green-50 text-green-800{% else %}bg-blue-50 text-blue-800{% endif %}"
+      >
+        <p class="text-sm font-medium">{{ message }}</p>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %} {% endwith %}
+
+    <!-- メインコンテンツ -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {% block content %}{% endblock %}
+    </main>
+
+    <!-- フッター -->
+    <footer class="bg-white border-t border-gray-200 mt-12">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <p class="text-center text-gray-500 text-sm">
+          &copy; 2025 fashion-app. All rights reserved.
+        </p>
+      </div>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+
+    <!-- モバイルメニュー制御のJavaScript -->
+    <script>
+      function toggleMobileMenu() {
+        const mobileMenu = document.getElementById("mobile-menu");
+        const menuIcon = document.getElementById("menu-icon");
+        const closeIcon = document.getElementById("close-icon");
+
+        if (mobileMenu.classList.contains("hidden")) {
+          // メニューを開く
+          mobileMenu.classList.remove("hidden");
+          menuIcon.classList.add("hidden");
+          closeIcon.classList.remove("hidden");
+        } else {
+          // メニューを閉じる
+          mobileMenu.classList.add("hidden");
+          menuIcon.classList.remove("hidden");
+          closeIcon.classList.add("hidden");
+        }
+      }
+
+      // メニューリンクをクリックしたらメニューを閉じる
+      document.addEventListener("DOMContentLoaded", function () {
+        const menuLinks = document.querySelectorAll("#mobile-menu a");
+        menuLinks.forEach((link) => {
+          link.addEventListener("click", function () {
+            const mobileMenu = document.getElementById("mobile-menu");
+            const menuIcon = document.getElementById("menu-icon");
+            const closeIcon = document.getElementById("close-icon");
+
+            mobileMenu.classList.add("hidden");
+            menuIcon.classList.remove("hidden");
+            closeIcon.classList.add("hidden");
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
