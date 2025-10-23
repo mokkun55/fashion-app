@@ -21,6 +21,14 @@ class Clothing(db.Model):
     last_worn_date = db.Column(db.Date, nullable=True)  # 最終着用日
     created_at = db.Column(db.DateTime, default=datetime.utcnow)  # 登録日時
     
+    # 自動検出された属性（JSON形式で保存）
+    detected_colors = db.Column(db.Text, nullable=True)  # 検出された色の情報
+    detected_category = db.Column(db.String(20), nullable=True)  # 自動検出されたカテゴリ
+    detected_subcategory = db.Column(db.String(20), nullable=True)  # 自動検出されたサブカテゴリ
+    detection_confidence = db.Column(db.Float, nullable=True)  # 検出の信頼度
+    shape_analysis = db.Column(db.Text, nullable=True)  # 形状分析結果
+    size_estimation = db.Column(db.Text, nullable=True)  # サイズ推定結果
+    
     def get_purposes_list(self):
         """用途ラベルをリストで取得"""
         return self.purposes.split(',') if self.purposes else []

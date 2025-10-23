@@ -10,6 +10,8 @@ import uuid
 from config import Config
 from models import db, Clothing, Settings, Schedule
 from utils import get_weather_info, generate_outfit_suggestions
+from image_processor import process_clothing_image
+import json
 
 
 def create_app(config_class=Config):
@@ -137,6 +139,14 @@ def create_app(config_class=Config):
         # データベースには相対パスを保存
         relative_path = f"uploads/{filename}"
         
+        # 画像処理による自動検出
+        detection_result = process_clothing_image(photo_path)
+        
+        # 自動検出結果をJSON形式で保存
+        detected_colors = json.dumps(detection_result.get('dominant_colors', []), ensure_ascii=False)
+        shape_analysis = json.dumps(detection_result.get('shape_analysis', {}), ensure_ascii=False)
+        size_estimation = json.dumps(detection_result.get('size_estimation', {}), ensure_ascii=False)
+        
         # DB保存
         purposes_str = ','.join(purposes)
         new_clothing = Clothing(
@@ -145,7 +155,13 @@ def create_app(config_class=Config):
             subcategory=subcategory,
             color=color,
             purposes=purposes_str,
-            last_worn_date=None
+            last_worn_date=None,
+            detected_colors=detected_colors,
+            detected_category=detection_result.get('category_estimation', {}).get('category'),
+            detected_subcategory=detection_result.get('category_estimation', {}).get('subcategory'),
+            detection_confidence=detection_result.get('confidence', 0.0),
+            shape_analysis=shape_analysis,
+            size_estimation=size_estimation
         )
         
         db.session.add(new_clothing)
@@ -408,6 +424,50 @@ def create_app(config_class=Config):
         except Exception as e:
             app.logger.error(f"Location update error: {e}")
             return jsonify({'success': False, 'error': 'サーバーエラーが発生しました'})
+    
+    @app.route('/analyze-image', methods=['POST'])
+    def analyze_image():
+        """画像をアップロードして自動分析する"""
+        try:
+            if 'photo' not in request.files:
+                return jsonify({'success': False, 'error': '写真を選択してください'})
+            
+            photo = request.files['photo']
+            if photo.filename == '':
+                return jsonify({'success': False, 'error': '写真を選択してください'})
+            
+            if not allowed_file(photo.filename):
+                return jsonify({'success': False, 'error': '許可されていないファイル形式です'})
+            
+            # 一時ファイルとして保存
+            temp_filename = f"temp_{uuid.uuid4()}_{secure_filename(photo.filename)}"
+            temp_path = os.path.join(app.config['UPLOAD_FOLDER'], temp_filename)
+            photo.save(temp_path)
+            
+            try:
+                # 画像分析を実行
+                result = process_clothing_image(temp_path)
+                
+                if 'error' in result:
+                    return jsonify({'success': False, 'error': result['error']})
+                
+                # 分析結果を返す
+                return jsonify({
+                    'success': True,
+                    'detected_colors': result.get('dominant_colors', []),
+                    'category_estimation': result.get('category_estimation', {}),
+                    'size_estimation': result.get('size_estimation', {}),
+                    'confidence': result.get('confidence', 0.0)
+                })
+                
+            finally:
+                # 一時ファイルを削除
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+            
+        except Exception as e:
+            app.logger.error(f"Image analysis error: {e}")
+            return jsonify({'success': False, 'error': '画像分析中にエラーが発生しました'})
     
     return app
 
