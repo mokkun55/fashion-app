@@ -31,10 +31,29 @@
                 
                 <input type="file" 
                        name="photo" 
+                       id="photo-input"
                        accept="image/*"
                        {% if not clothing %}required{% endif %}
+                       onchange="analyzeImage()"
                        class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
                 <p class="mt-1 text-xs text-gray-500">PNG, JPG, JPEG, GIF, WEBP（最大16MB）</p>
+                
+                <!-- 自動分析結果表示エリア -->
+                <div id="analysis-result" class="mt-4 p-4 bg-blue-50 rounded-lg hidden">
+                    <h3 class="text-sm font-medium text-blue-900 mb-2">🤖 自動分析結果</h3>
+                    <div id="analysis-content" class="text-sm text-blue-800"></div>
+                    <button type="button" onclick="applyAnalysis()" class="mt-2 px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700">
+                        この結果を適用
+                    </button>
+                </div>
+                
+                <!-- ローディング表示 -->
+                <div id="analysis-loading" class="mt-4 p-4 bg-gray-50 rounded-lg hidden">
+                    <div class="flex items-center">
+                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                        <span class="text-sm text-gray-600">画像を分析中...</span>
+                    </div>
+                </div>
             </div>
 
             <!-- 種類（大分類） -->
@@ -181,6 +200,169 @@
                 subcategorySelect.appendChild(optionElement);
             });
         }
+    }
+
+    // 自動分析結果を保存する変数
+    let currentAnalysisResult = null;
+
+    // 画像分析関数
+    function analyzeImage() {
+        const fileInput = document.getElementById('photo-input');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            hideAnalysisResult();
+            return;
+        }
+        
+        // ローディング表示
+        showLoading();
+        
+        // FormDataを作成
+        const formData = new FormData();
+        formData.append('photo', file);
+        
+        // 画像分析APIを呼び出し
+        fetch('/analyze-image', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            
+            if (data.success) {
+                currentAnalysisResult = data;
+                displayAnalysisResult(data);
+            } else {
+                showError('画像分析に失敗しました: ' + data.error);
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            showError('画像分析中にエラーが発生しました: ' + error.message);
+        });
+    }
+    
+    // 分析結果を表示
+    function displayAnalysisResult(data) {
+        const resultDiv = document.getElementById('analysis-result');
+        const contentDiv = document.getElementById('analysis-content');
+        
+        let content = '';
+        
+        // 検出された色
+        if (data.detected_colors && data.detected_colors.length > 0) {
+            content += '<div class="mb-2"><strong>検出された色:</strong> ';
+            const colors = data.detected_colors.map(c => `${c.color} (${c.percentage}%)`).join(', ');
+            content += colors + '</div>';
+        }
+        
+        // カテゴリ推定
+        if (data.category_estimation && data.category_estimation.category !== '不明') {
+            content += '<div class="mb-2"><strong>推定カテゴリ:</strong> ';
+            content += data.category_estimation.category;
+            if (data.category_estimation.subcategory !== '不明') {
+                content += ' - ' + data.category_estimation.subcategory;
+            }
+            content += ` (信頼度: ${Math.round(data.category_estimation.confidence * 100)}%)</div>`;
+        }
+        
+        // サイズ推定
+        if (data.size_estimation && data.size_estimation.size_type) {
+            content += '<div class="mb-2"><strong>サイズ感:</strong> ';
+            content += data.size_estimation.size_type + ' - ' + data.size_estimation.size_level;
+            content += '</div>';
+        }
+        
+        // 全体の信頼度
+        if (data.confidence) {
+            content += '<div><strong>分析信頼度:</strong> ' + Math.round(data.confidence * 100) + '%</div>';
+        }
+        
+        contentDiv.innerHTML = content;
+        resultDiv.classList.remove('hidden');
+    }
+    
+    // 分析結果をフォームに適用
+    function applyAnalysis() {
+        if (!currentAnalysisResult) return;
+        
+        const data = currentAnalysisResult;
+        
+        // カテゴリを適用
+        if (data.category_estimation && data.category_estimation.category !== '不明') {
+            const categoryRadios = document.getElementsByName('category');
+            for (const radio of categoryRadios) {
+                if (radio.value === data.category_estimation.category) {
+                    radio.checked = true;
+                    updateSubcategoryOptions();
+                    break;
+                }
+            }
+        }
+        
+        // サブカテゴリを適用
+        if (data.category_estimation && data.category_estimation.subcategory !== '不明') {
+            setTimeout(() => {
+                const subcategorySelect = document.getElementById('subcategory');
+                for (const option of subcategorySelect.options) {
+                    if (option.value === data.category_estimation.subcategory) {
+                        option.selected = true;
+                        break;
+                    }
+                }
+            }, 100);
+        }
+        
+        // 色を適用
+        if (data.detected_colors && data.detected_colors.length > 0) {
+            const colorSelect = document.querySelector('select[name="color"]');
+            const dominantColor = data.detected_colors[0].color;
+            for (const option of colorSelect.options) {
+                if (option.value === dominantColor) {
+                    option.selected = true;
+                    break;
+                }
+            }
+        }
+        
+        // 適用完了メッセージ
+        showSuccess('自動分析結果をフォームに適用しました！');
+        
+        // 分析結果を非表示
+        hideAnalysisResult();
+    }
+    
+    // ローディング表示
+    function showLoading() {
+        document.getElementById('analysis-loading').classList.remove('hidden');
+        document.getElementById('analysis-result').classList.add('hidden');
+    }
+    
+    // ローディング非表示
+    function hideLoading() {
+        document.getElementById('analysis-loading').classList.add('hidden');
+    }
+    
+    // 分析結果非表示
+    function hideAnalysisResult() {
+        document.getElementById('analysis-result').classList.add('hidden');
+        currentAnalysisResult = null;
+    }
+    
+    // エラー表示
+    function showError(message) {
+        const resultDiv = document.getElementById('analysis-result');
+        const contentDiv = document.getElementById('analysis-content');
+        contentDiv.innerHTML = '<div class="text-red-600">' + message + '</div>';
+        resultDiv.classList.remove('hidden');
+    }
+    
+    // 成功メッセージ表示
+    function showSuccess(message) {
+        // 簡単なアラートで表示（実際のアプリではより良いUIを実装）
+        alert(message);
     }
 
     // ページ読み込み時に実行
